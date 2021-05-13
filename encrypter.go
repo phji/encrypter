@@ -39,16 +39,18 @@ func (e *Encrypter) Encrypt(value string) string {
 		panic(err)
 	}
 
-	encodedValue := make([]byte, len(out))
-	copy(encodedValue, out)
+	padded := PadByPkcs7(out)
+
+	encodedValue := make([]byte, len(padded))
+	copy(encodedValue, padded)
 
 	encrypter.CryptBlocks(encodedValue, encodedValue)
 
-	padded := PadByPkcs7(encodedValue)
+	b64encoded := base64.StdEncoding.EncodeToString(encodedValue)
 
-	mac := e.hash(encodedIv, string(padded))
+	mac := e.hash(encodedIv, string(b64encoded))
 
-	p := Payload{Iv: encodedIv, Value: string(padded), Mac: mac}
+	p := Payload{Iv: encodedIv, Value: b64encoded, Mac: mac}
 	json, err := json.Marshal(p)
 	if err != nil {
 		panic(err)
