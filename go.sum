@@ -1,5 +1,9 @@
 github.com/Luzifer/go-openssl/v4 v4.1.0 h1:8qi3Z6f8Aflwub/Cs4FVSmKUEg/lC8GlODbR2TyZ+nM=
 github.com/Luzifer/go-openssl/v4 v4.1.0/go.mod h1:3i1T3Pe6eQK19d86WhuQzjLyMwBaNmGmt3ZceWpWVa4=
+github.com/elliotchance/phpserialize v1.3.0 h1:yQ9t2spsOBp95V9qo4vPYIC2bXFaYOraRb8hpWd5E38=
+github.com/elliotchance/phpserialize v1.3.0/go.mod h1:gt7XX9+ETUcLXbtTKEuyrqW3lcLUAeS/AnGZ2e49TZs=
+github.com/funny/crypto v0.0.0-20161011085906-d0152d76d92a h1:R2xoAw1XG39E29rKtP9veb642O0/BldKquO0KehI3lo=
+github.com/funny/crypto v0.0.0-20161011085906-d0152d76d92a/go.mod h1:Yye2edoCeYVlm60tkTaws4eZvBn/vg2c7nyUrr+eAR8=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 h1:vEg9joUBmeBcK9iSJftGNf3coIG4HqZElCPehJsfAYM=
 golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
