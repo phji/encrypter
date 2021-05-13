@@ -17,6 +17,12 @@ type (
 	Encrypter struct {
 		key []byte
 	}
+
+	Payload struct {
+		Iv    string `json:"iv"`
+		Value string `json:"value"`
+		Mac   string `json:"mac"`
+	}
 )
 
 func NewEncrypter(key string) *Encrypter {
@@ -25,12 +31,14 @@ func NewEncrypter(key string) *Encrypter {
 	return &Encrypter{key: decoded}
 }
 
-
 func (e *Encrypter) Encrypt(value string) string {
-	iv, _ := e.RandomBytes(16)
+	iv, _ := e.randomBytes(16)
 	encodedIv := base64.StdEncoding.EncodeToString(iv)
 
 	c, err := aes.NewCipher(e.key)
+	if err != nil {
+		panic(err)
+	}
 
 	encrypter := cipher.NewCBCEncrypter(c, iv)
 
@@ -39,7 +47,7 @@ func (e *Encrypter) Encrypt(value string) string {
 		panic(err)
 	}
 
-	padded := PadByPkcs7(out)
+	padded := e.padByPkcs7(out)
 
 	encodedValue := make([]byte, len(padded))
 	copy(encodedValue, padded)
@@ -64,14 +72,15 @@ func (e *Encrypter) Decrypt(payload string) string {
 
 	iv, _ := base64.StdEncoding.DecodeString(json.Iv)
 
-	block, err := aes.NewCipher(e.key); if err != nil {
+	block, err := aes.NewCipher(e.key)
+	if err != nil {
 		panic(err)
 	}
 
 	cipherText, _ := base64.StdEncoding.DecodeString(json.Value)
 	if len(cipherText) < aes.BlockSize {
 		panic("cipher text must be longer than blocksize")
-	} else if len(cipherText) % aes.BlockSize != 0 {
+	} else if len(cipherText)%aes.BlockSize != 0 {
 		panic("cipher text must be multiple of blocksize(128bit)")
 	}
 
@@ -80,7 +89,7 @@ func (e *Encrypter) Decrypt(payload string) string {
 	decrypter := cipher.NewCBCDecrypter(block, iv)
 	decrypter.CryptBlocks(plainText, cipherText)
 
-	serialized := UnPadByPkcs7(plainText)
+	serialized := e.unPadByPkcs7(plainText)
 
 	var unserialized string
 	phpserialize.Unmarshal(serialized, &unserialized)
@@ -88,29 +97,22 @@ func (e *Encrypter) Decrypt(payload string) string {
 	return unserialized
 }
 
-func PadByPkcs7(data []byte) []byte {
+func (e *Encrypter) padByPkcs7(data []byte) []byte {
 	padSize := aes.BlockSize
-	if len(data) % aes.BlockSize != 0 {
-		padSize = aes.BlockSize - (len(data)) % aes.BlockSize
+	if len(data)%aes.BlockSize != 0 {
+		padSize = aes.BlockSize - (len(data))%aes.BlockSize
 	}
 
 	pad := bytes.Repeat([]byte{byte(padSize)}, padSize)
 	return append(data, pad...) // Dots represent it unpack Slice(pad) into individual bytes
 }
 
-func UnPadByPkcs7(data []byte) []byte {
-	padSize := int(data[len(data) - 1])
-	return data[:len(data) - padSize]
+func (e *Encrypter) unPadByPkcs7(data []byte) []byte {
+	padSize := int(data[len(data)-1])
+	return data[:len(data)-padSize]
 }
 
-
-type Payload struct {
-	Iv string `json:"iv"`
-	Value string `json:"value"`
-	Mac string `json:"mac"`
-}
-
-func (e *Encrypter) getJsonPayload(payload string ) Payload {
+func (e *Encrypter) getJsonPayload(payload string) Payload {
 	decoded, _ := base64.StdEncoding.DecodeString(payload)
 
 	var p Payload
@@ -121,7 +123,7 @@ func (e *Encrypter) getJsonPayload(payload string ) Payload {
 	return p
 }
 
-func (e *Encrypter) RandomBytes(size int) (blk []byte, err error) {
+func (e *Encrypter) randomBytes(size int) (blk []byte, err error) {
 	blk = make([]byte, size)
 	_, err = rand.Read(blk)
 	return
@@ -130,7 +132,7 @@ func (e *Encrypter) RandomBytes(size int) (blk []byte, err error) {
 func (e *Encrypter) hash(iv string, value string) string {
 	msg := iv + value
 
-	h := hmac.New(sha256.New, []byte(e.key))
+	h := hmac.New(sha256.New, e.key)
 	h.Write([]byte(msg))
 
 	return hex.EncodeToString(h.Sum(nil))

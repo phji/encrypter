@@ -138,6 +138,12 @@ func TestEncrypter_Encrypt(t *testing.T) {
 			args: args{value: "a"},
 			want: "a",
 		},
+		{
+			name: "16 byte",
+			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
+			args: args{value: "aaaaaaaaaaaaaaaa"},
+			want: "aaaaaaaaaaaaaaaa",
+		},
 
 	}
 	for _, tt := range tests {
