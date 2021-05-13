@@ -82,31 +82,64 @@ func TestEncrypter_Decrypt(t *testing.T) {
 		fields fields
 		args   args
 		want   string
+		wantErr bool
 	}{
 		{
 			name: "a",
 			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
 			args:   args{payload: "eyJpdiI6IlliTVRuZXZVcDEyWlhRRWp4Vjd3TWc9PSIsInZhbHVlIjoiMTdCbkdvR3lOanNaOWxzMWZtYkJuUT09IiwibWFjIjoiMzJmODU1NmY1NDZkZDFlZTJlZjE2M2ZiOWNiODY2NDRlMTY5YTRhYTVlNmIxN2JjZWU1MGIzZTc1OWViZmQyNSJ9"},
 			want:   "a",
+			wantErr: false,
 		},
 		{
 			name: "empty",
 			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
 			args:   args{payload: "eyJpdiI6InR3Z3pkQlJTNmQzMzJpUXo4ME5EZ0E9PSIsInZhbHVlIjoiYjVHY095alN2Ym1ZOEZWaUkyZW9tQT09IiwibWFjIjoiODIwMjE3NjQwOTZmMzM2MTgzMDIwYTY0NGQwOWI4NmRiNjNmN2Q4MjliMDg1NWQ4OWVkZTQwZDgzZjg2MzU2ZCJ9"},
 			want:   "",
+			wantErr: false,
 		},
 		{
 			name: "16 byte",
 			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
 			args:   args{payload: "eyJpdiI6Im93bHZkNXlpdXg5Vmg2M2YxNW1tbnc9PSIsInZhbHVlIjoiUThMUlBvd21VUkFFV0ZzUCt0MmUyWXgvSjVvVmtuMDRQdVFmMlc2R0lNVT0iLCJtYWMiOiI5MzM2NTFhMDg2ZTZhZmI4OTM2ODk2NThjOTQ3OWY4NGEwNmExNTFkNzg3NTBiZGQ2NjgxYjFiYjc3MzE1OWMwIn0="},
 			want:   "aaaaaaaaaaaaaaaa",
+			wantErr: false,
+		},
+		{
+			name: "iv error",
+			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
+			args:   args{payload: "eyJpdiI6ImEiLCJ2YWx1ZSI6IiIsIm1hYyI6IiJ9"},
+			wantErr: true,
+		},
+		{
+			name: "len(cipherText) < aes.BlockSize",
+			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
+			args:   args{payload: "eyJpdiI6IiIsInZhbHVlIjoiIiwibWFjIjoiIn0="},
+			wantErr: true,
+		},
+		{
+			name: "len(cipherText)%aes.BlockSize != 0",
+			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
+			args:   args{payload: "eyJpdiI6ImFhYWFhYWFhYWFhYWFhYWEiLCJ2YWx1ZSI6IiIsIm1hYyI6IiJ9"},
+			wantErr: true,
+		},
+		{
+			name: "key error",
+			fields: fields{key: ""},
+			args:   args{payload: "eyJpdiI6Im93bHZkNXlpdXg5Vmg2M2YxNW1tbnc9PSIsInZhbHVlIjoiUThMUlBvd21VUkFFV0ZzUCt0MmUyWXgvSjVvVmtuMDRQdVFmMlc2R0lNVT0iLCJtYWMiOiI5MzM2NTFhMDg2ZTZhZmI4OTM2ODk2NThjOTQ3OWY4NGEwNmExNTFkNzg3NTBiZGQ2NjgxYjFiYjc3MzE1OWMwIn0="},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := NewEncrypter(tt.fields.key)
-			if got := e.Decrypt(tt.args.payload); got != tt.want {
-				t.Errorf("Decrypt() = %v, want %v", got, tt.want)
+			got, err := e.Decrypt(tt.args.payload)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Decrypt() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Decrypt() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -124,6 +157,7 @@ func TestEncrypter_Encrypt(t *testing.T) {
 		fields fields
 		args   args
 		want   string
+		wantErr bool
 	}{
 		{
 			name: "empty encrypt -> decrypt want empty",
@@ -131,27 +165,77 @@ func TestEncrypter_Encrypt(t *testing.T) {
 			args: args{value: ""},
 			//  eyJpdiI6IlNnakF1SmNETXZrRG13cjYyM2cyOFE9PSIsInZhbHVlIjoiVDVLbEhCTUYrVTVMcnNITVAzYzVIdz09IiwibWFjIjoiMTMxNTJkOGFiNGI5NDZjNzEyNmYyODJlMGM4ZjM3ODI4OTA3NmE4OGFiZGZmMmQxYzRjNTdjMDQyZDZmZGNmZSJ9
 			want: "",
+			wantErr: false,
 		},
 		{
 			name: "a encrypt -> decrypt want a",
 			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
 			args: args{value: "a"},
 			want: "a",
+			wantErr: false,
 		},
 		{
 			name: "16 byte",
 			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
 			args: args{value: "aaaaaaaaaaaaaaaa"},
 			want: "aaaaaaaaaaaaaaaa",
+			wantErr: false,
 		},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := NewEncrypter(tt.fields.key)
 
-			if got := e.Decrypt(e.Encrypt(tt.args.value)); got != tt.want {
+			if got, _ := e.Decrypt(e.Encrypt(tt.args.value)); got != tt.want {
 				t.Errorf("Encrypt() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEncrypter_setJsonPayload(t *testing.T) {
+	type fields struct {
+		key string
+	}
+	type args struct {
+		payload Payload
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
+			args: args{payload: Payload{Iv: "", Value: "", Mac: ""}},
+			want: "eyJpdiI6IiIsInZhbHVlIjoiIiwibWFjIjoiIn0=",
+			wantErr: false,
+		},
+		{
+			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
+			args: args{payload: Payload{Iv: "a", Value: "", Mac: ""}},
+			want: "eyJpdiI6ImEiLCJ2YWx1ZSI6IiIsIm1hYyI6IiJ9",
+			wantErr: false,
+		},
+		{
+			fields: fields{key: "qyk5OUGEoI3e7asY/ij+uMEeBnSxWTDS8LT7ExX1u88="},
+			args: args{payload: Payload{Iv: "aaaaaaaaaaaaaaaa", Value: "", Mac: ""}},
+			want: "eyJpdiI6ImFhYWFhYWFhYWFhYWFhYWEiLCJ2YWx1ZSI6IiIsIm1hYyI6IiJ9",
+			wantErr: false,
+		},
+	}
+		for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := NewEncrypter(tt.fields.key)
+			got, err := e.setJsonPayload(tt.args.payload)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("setJsonPayload() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("setJsonPayload() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

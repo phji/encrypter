@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"github.com/elliotchance/phpserialize"
 )
 
@@ -56,32 +57,40 @@ func (e *Encrypter) Encrypt(value string) string {
 
 	b64encoded := base64.StdEncoding.EncodeToString(encodedValue)
 
-	mac := e.hash(encodedIv, string(b64encoded))
+	mac := e.hash(encodedIv, b64encoded)
 
 	p := Payload{Iv: encodedIv, Value: b64encoded, Mac: mac}
-	json, err := json.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
+	json, _ := e.setJsonPayload(p)
 
-	return base64.StdEncoding.EncodeToString(json)
+	return json
 }
 
-func (e *Encrypter) Decrypt(payload string) string {
+func (e *Encrypter) setJsonPayload(payload Payload) (string, error) {
+	json, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(json), nil
+}
+
+func (e *Encrypter) Decrypt(payload string) (string, error) {
 	json := e.getJsonPayload(payload)
 
-	iv, _ := base64.StdEncoding.DecodeString(json.Iv)
+	iv, err := base64.StdEncoding.DecodeString(json.Iv)
+	if err != nil {
+		return "", err
+	}
 
 	block, err := aes.NewCipher(e.key)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	cipherText, _ := base64.StdEncoding.DecodeString(json.Value)
 	if len(cipherText) < aes.BlockSize {
-		panic("cipher text must be longer than blocksize")
+		return "", errors.New("cipher text must be longer than blocksize")
 	} else if len(cipherText)%aes.BlockSize != 0 {
-		panic("cipher text must be multiple of blocksize(128bit)")
+		return "", errors.New("cipher text must be multiple of blocksize(128bit)")
 	}
 
 	plainText := make([]byte, len(cipherText))
@@ -92,9 +101,11 @@ func (e *Encrypter) Decrypt(payload string) string {
 	serialized := e.unPadByPkcs7(plainText)
 
 	var unserialized string
-	phpserialize.Unmarshal(serialized, &unserialized)
+	if err := phpserialize.Unmarshal(serialized, &unserialized); err != nil {
+		return "", err
+	}
 
-	return unserialized
+	return unserialized, nil
 }
 
 func (e *Encrypter) padByPkcs7(data []byte) []byte {
